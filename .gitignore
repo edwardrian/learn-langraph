@@ -1,0 +1,6 @@
+# Dependencias y compilados locales
+build/
+dist/
+*.egg-info/
+EOF.env
+*.vscode
