@@ -20,3 +20,6 @@ dist/
 .env
 .env.*
 !.env.example
+
+# LangGraph Studio (langgraph dev): persistencia local de threads y checkpoints
+.langgraph_api/

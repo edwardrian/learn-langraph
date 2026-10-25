@@ -9,20 +9,23 @@ Flujo:
     START -> generar -> [gate] --Pass--> mejorar -> pulir -> END
                               \--Fail--> END
 
-Ejecutar:
-    python prompt_chaining.py "gatos"
+Ejecutar (desde la raíz del repo):
+    .venv/bin/python "prompt chaining/prompt_chaining.py" "gatos"
 """
 
 import os
 import sys
 from functools import lru_cache
+from pathlib import Path
 from typing import TypedDict
 
 from dotenv import load_dotenv
 from langgraph.graph import END, START, StateGraph
 from langsmith import Client
 
-load_dotenv()
+# Un solo .env en la raíz del repo, compartido por todos los temas
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+os.environ.setdefault("LANGSMITH_PROJECT", "prompt-chaining")  # trazas separadas por tema
 
 # Identificadores de los prompts en LangSmith (Prompt Hub).
 # Formato: "nombre" o "nombre:commit" para fijar una versión concreta.
@@ -44,7 +47,7 @@ def cargar_prompt(prompt_id: str):
 def ejecutar_prompt(prompt_id: str, variables: dict) -> str:
     """Invoca el prompt y devuelve el texto de la respuesta del modelo."""
     respuesta = cargar_prompt(prompt_id).invoke(variables)
-    return respuesta.content if hasattr(respuesta, "content") else str(respuesta)
+    return respuesta.text if hasattr(respuesta, "text") else str(respuesta)
 
 
 # --- Estado -----------------------------------------------------------------

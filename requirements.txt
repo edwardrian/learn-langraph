@@ -4,4 +4,7 @@ python-dotenv>=1.0
 # Paquete del proveedor configurado en tus prompts de LangSmith (instala solo el que uses):
 # langchain-anthropic
 # langchain-openai
-# langchain-google-genai
+langchain-google-genai
+
+# LangGraph Studio local: .venv/bin/langgraph dev
+langgraph-cli[inmem]

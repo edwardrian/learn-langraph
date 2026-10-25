@@ -1,0 +1,9 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "prompt_chaining": "./prompt chaining/prompt_chaining.py:app",
+    "routing": "./routing/routing.py:app",
+    "parallelization": "./parallelization/parallelization.py:app"
+  },
+  "env": ".env"
+}
