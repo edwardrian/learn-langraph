@@ -17,7 +17,7 @@ Espacio para aprender, **un tema por carpeta**, los patrones de workflows y agen
 |---|---|---|---|
 | Workflow: Prompt chaining | [`prompt chaining/`](prompt%20chaining/prompt_chaining.py) | Genera un texto, lo valida con un gate y lo mejora en pasos encadenados | [Excalidraw+](https://app.excalidraw.com/s/QkmJ8Er8OV/9LrCOKuF1dF) |
 | Workflow: Routing | [`routing/`](routing/routing.py) | Atención al cliente de vehículos: clasifica la consulta (reparación, reclamo o producto) y la envía a una sola rama | [Excalidraw+](https://app.excalidraw.com/s/QkmJ8Er8OV/7uHc5d51cZO) |
-| Workflow: Parallelization | [`parallelization/`](parallelization/parallelization.py) | Cotización de repuestos: inventario, logística, pricing y recomendaciones en paralelo, y un sintetizador que arma la cotización. Incluye memoria de conversación | [Excalidraw+](https://app.excalidraw.com/s/QkmJ8Er8OV/6AUr7FzfDWE) |
+| Workflow: Parallelization | [`parallelization/`](parallelization/parallelization.py) | Cotización de repuestos: un gate rápido revisa que haya ítems y ciudad; luego inventario, logística, pricing y recomendaciones en paralelo, y un sintetizador que arma la cotización. Incluye memoria de conversación (checkpointer) y memoria del cliente entre conversaciones (store) | [Excalidraw+](https://app.excalidraw.com/s/QkmJ8Er8OV/6AUr7FzfDWE) |
 
 Próximos temas: Orchestrator-workers → Evaluator-optimizer → Agent (bucle con herramientas).
 
@@ -31,11 +31,11 @@ Routing:                             /--reparacion--> reparaciones --\
                   START -> router ----reclamo-----> reclamos     ----> END
                                      \--producto----> productos    --/
 
-Parallelization:                             /-> inventario       -\
-                                            +--> logistica        --+
-  START -> armar_solicitud -> (scatter) ----+--> pricing          --+--> consolidar --completo--> redactar_cotizacion -> END
-                                             \-> recomendaciones  -/         |
-                                                 (opcional)                  \--incompleto--> cotizacion_incompleta -> END
+Parallelization:  START -> armar_solicitud -> validar_solicitud -> [gate]
+                  [gate] --incompleta--> pedir_datos ---------------------------------> guardar_memoria -> END
+                  [gate] --apta--> repartir -> en paralelo: inventario | logistica | pricing | recomendaciones -> consolidar
+                  consolidar --completo--> redactar_cotizacion -----------------------> guardar_memoria -> END
+                  consolidar --incompleto--> cotizacion_incompleta -------------------> guardar_memoria -> END
 ```
 
 ## Estructura
@@ -94,8 +94,15 @@ Desde la raíz del repo:
 .venv/bin/python parallelization/parallelization.py "Hola, quiero cotizar unos productos"
 ```
 
-Parallelization abre un chat con memoria (`InMemorySaver`): puedes dar los datos en
-varios mensajes. Enter vacío para salir.
+Parallelization abre un chat con dos memorias en RAM (se pierden al cerrar el script):
+
+| Memoria | Componente | Qué recuerda |
+|---|---|---|
+| Corto plazo | `InMemorySaver` + `thread_id` | Los mensajes de la conversación: puedes dar los datos en varios mensajes |
+| Largo plazo | `InMemoryStore` + `cliente_id` (context) | La ficha del cliente (nombre, ciudad, vehículo) y su última cotización, en `("clientes", cliente_id)` |
+
+Escribe `/nuevo` para abrir otra conversación del mismo cliente (ya sabe su ciudad y
+vehículo) y Enter vacío para salir.
 
 ### Ver los grafos en LangGraph Studio
 
@@ -107,8 +114,9 @@ Abre https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2025 y elige e
 grafo arriba a la izquierda. Se detiene con `Ctrl+C`.
 
 - Studio guarda sus threads en `.langgraph_api/` (ignorado por git; se puede borrar).
-- Studio pone su propia persistencia: los grafos que exporta cada script (`app`) se
-  compilan **sin** checkpointer.
+- Studio pone su propia persistencia y store: los grafos que exporta cada script (`app`)
+  se compilan **sin** checkpointer ni store. Lo que guarda el store se ve en la pestaña
+  **Memory**; en parallelization, indica el `cliente_id` en el context del asistente.
 - Si ves `Thread or assistant not found`, revisa que la URL use el puerto **2025**
   (el 2024 es el puerto por defecto de Studio) o abre un thread nuevo.
 
@@ -122,6 +130,8 @@ grafo arriba a la izquierda. Se detiene con `Ctrl+C`.
 - Cada tema usa un prefijo en sus prompts para que no choquen: `pc-`, `rt-`, `par-`.
 - Las decisiones (gate, router, scatter, integridad) son **funciones normales sin LLM**
   dentro de `add_conditional_edges`.
+  En parallelization, el gate va **antes** del fan-out: si faltan ítems o ciudad, se piden
+  al cliente sin lanzar los workers (1 llamada barata en vez de 6).
 - Cada nodo lleva un comentario breve de qué entra al estado y qué sale.
 - Cada script carga el `.env` de la raíz y fija su propio proyecto de trazas
   (`LANGSMITH_PROJECT`, por defecto el nombre del tema).
