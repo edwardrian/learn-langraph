@@ -1,6 +1,22 @@
-# Dependencias y compilados locales
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
 build/
 dist/
 *.egg-info/
-EOF.env
-*.vscode
+
+# Secretos (solo se sube .env.example)
+.env
+.env.*
+!.env.example
